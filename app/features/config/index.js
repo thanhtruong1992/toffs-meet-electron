@@ -24,7 +24,7 @@ export default {
     /**
      * The default server URL of Jitsi Meet Deployment that will be used.
      */
-    defaultServerURL: 'https://wemeet.toffstech.com',
+    defaultServerURL: 'https://demo.toffstech.com',
 
     /**
      * The default server Timeout in seconds.
