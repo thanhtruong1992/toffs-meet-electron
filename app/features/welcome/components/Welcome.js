@@ -143,7 +143,7 @@ class Welcome extends Component<Props, State> {
      */
     render() {
         return (
-            <Page>
+            <Page navigation = { <Navbar /> }>
                 <AtlasKitThemeProvider mode = 'light'>
                     <Setting onClick = { this._onIconSettingClick }>
                         <CogSVG />
