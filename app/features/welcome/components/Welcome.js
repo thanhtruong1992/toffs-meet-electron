@@ -13,7 +13,7 @@ import type { Dispatch } from 'redux';
 import { connect } from 'react-redux';
 import { push } from 'react-router-redux';
 
-import { Navbar } from '../../navbar';
+import { Navbar, openDrawer } from '../../navbar';
 import { Onboarding, startOnboarding } from '../../onboarding';
 import { RecentList } from '../../recent-list';
 import { createConferenceObjectFromURL } from '../../utils';
@@ -21,6 +21,9 @@ import { createConferenceObjectFromURL } from '../../utils';
 import { Body, FieldWrapper, Header, Wrapper, FormLogin, TitleLogin, DivGroup, DivSVG, Input, ButtonLogin, Footer } from '../styled';
 import PremiumMeeting from './PremiumMeeting';
 import HomeLgAltSVG from '../../../images/home-lg-alt.svg';
+import CogSVG from '../../../images/cog.svg';
+import Setting from '../styled/Setting';
+import { SettingsDrawer } from '../../settings';
 
 type Props = {
 
@@ -107,6 +110,7 @@ class Welcome extends Component<Props, State> {
         this._onFormSubmit = this._onFormSubmit.bind(this);
         this._onJoin = this._onJoin.bind(this);
         this._updateRoomname = this._updateRoomname.bind(this);
+        this._onIconSettingClick = this._onIconSettingClick.bind(this);
     }
 
     /**
@@ -141,6 +145,9 @@ class Welcome extends Component<Props, State> {
         return (
             <Page>
                 <AtlasKitThemeProvider mode = 'light'>
+                    <Setting onClick = { this._onIconSettingClick }>
+                        <CogSVG />
+                    </Setting>
                     <Wrapper>
                         <PremiumMeeting />
                         { this._renderHeader() }
@@ -352,6 +359,17 @@ class Welcome extends Component<Props, State> {
                 updateTimeoutId
             },
             () => this._animateRoomnameChanging(generatedRoomname));
+    }
+
+    _onIconSettingClick: (*) => void;
+
+    /**
+     * Open Settings drawer when SettingsButton is clicked.
+     *
+     * @returns {void}
+     */
+    _onIconSettingClick() {
+        this.props.dispatch(openDrawer(SettingsDrawer));
     }
 }
 
