@@ -7,7 +7,12 @@ import {
     SET_NAME,
     SET_SERVER_URL,
     SET_SERVER_TIMEOUT,
-    SET_VIDEO_MUTED
+    SET_VIDEO_MUTED,
+    SET_SNVS_PATH,
+    SET_CLNT_PATH,
+    SET_CONC_ADDR,
+    SET_CONC_PORT,
+    SET_UNLOCK_PASSWORD
 } from './actionTypes';
 
 import { normalizeServerURL } from '../utils';
@@ -122,5 +127,76 @@ export function setWindowAlwaysOnTop(alwaysOnTopWindowEnabled: boolean) {
     return {
         type: SET_ALWAYS_ON_TOP_WINDOW_ENABLED,
         alwaysOnTopWindowEnabled
+    };
+}
+
+/**
+ * Set SNVS path.
+ *
+ * @param {string} snvsPath - Path to SNVS file.
+ * @returns {{
+ *     type: SET_SNVS_PATH,
+ *     snvsPath: string
+ * }}
+ */
+export function setSnvsPath(snvsPath: string) {
+    return {
+        type: SET_SNVS_PATH,
+        snvsPath
+    };
+}
+
+/**
+ * Set CLNT path.
+ *
+ * @param {string} clntPath - Path to CLNT file.
+ * @returns {{
+ *     type: SET_CLNT_PATH,
+ *     clntPath: string
+ * }}
+ */
+export function setClntPath(clntPath: string) {
+    return {
+        type: SET_CLNT_PATH,
+        clntPath
+    };
+}
+
+/**
+ * Set concentrator address.
+ *
+ * @param {string} concAddr - Concetrator IP address.
+ * @returns {{
+ *     type: SET_CONC_ADDR,
+ *     concAddr: string
+ * }}
+ */
+export function setConcAddr(concAddr: string) {
+    return {
+        type: SET_CONC_ADDR,
+        concAddr
+    };
+}
+
+/**
+ * Set concentrator port.
+ *
+ * @param {string} concPort - Concetrator port.
+ * @returns {{
+ *     type: SET_CONC_PORT,
+ *     concPort: string
+ * }}
+ */
+export function setConcPort(concPort: string) {
+    return {
+        type: SET_CONC_PORT,
+        concPort
+    };
+}
+
+export function setUnlockPassword(unlockPassword: string) {
+    return {
+        type: SET_UNLOCK_PASSWORD,
+        unlockPassword
     };
 }

@@ -28,8 +28,14 @@ export const ButtonLogin = styled.button`
     font-size: 14px;
     cursor: pointer;
     text-transform: uppercase;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     &:focus {
         outline: none;
+    }
+    &:disabled {
+        background: #c3c3c3;
     }
 `;
 
@@ -56,7 +62,6 @@ export const DivSVG = styled.div`
     }
 `;
 
-
 export const TitleLogin = styled.h4`
     font-size: 20px;
     text-transform: uppercase;
@@ -75,3 +80,51 @@ export const Input = styled.input`
         outline: none;
     }
 `;
+
+export const Loading = styled.div`
+    width: 15px;
+    height: 15px;
+    border-radius: 60px;
+    margin-right: 10px;
+    animation: loader 0.8s linear infinite;
+    -webkit-animation: loader 0.8s linear infinite;
+
+    @keyframes loader {
+        0% {
+            -webkit-transform: rotate(0deg);
+            transform: rotate(0deg);
+            border: 3px solid #0376DA;
+            border-left-color: transparent;
+        }
+        50% {
+            -webkit-transform: rotate(180deg);
+            transform: rotate(180deg);
+            border: 3px solid #0376DA;
+            border-left-color: transparent;
+        }
+        100% {
+            -webkit-transform: rotate(360deg);
+            transform: rotate(360deg);
+            border: 3px solid #0376DA;
+            border-left-color: transparent;
+        }
+    }
+    
+    @-webkit-keyframes loader {
+        0% {
+            -webkit-transform: rotate(0deg);
+            border: 3px solid #0376DA;
+            border-left-color: transparent;
+        }
+        50% {
+            -webkit-transform: rotate(180deg);
+            border: 3px solid #0376DA;
+            border-left-color: transparent;
+        }
+        100% {
+            -webkit-transform: rotate(360deg);
+            border: 3px solid #0376DA;
+            border-left-color: transparent;
+        }
+    }
+`

@@ -17,7 +17,7 @@ Desktop application for [Jitsi Meet] built with [Electron].
 
 Download our latest release and you're off to the races!
 
-| Windows | macOS | GNU/Linux (64-bit only) |
+| Windows | macOS | GNU/Linux (64bits only) |
 | -- | -- | -- |
 | [Download](https://github.com/jitsi/jitsi-meet-electron/releases/latest/download/jitsi-meet.exe) | [Download](https://github.com/jitsi/jitsi-meet-electron/releases/latest/download/jitsi-meet.dmg) | [Download](https://github.com/jitsi/jitsi-meet-electron/releases/latest/download/jitsi-meet-x86_64.AppImage) |
 
@@ -57,8 +57,6 @@ If you want to hack on this project, here is how you do it.
 <details><summary>Show building instructions</summary>
 
 #### Installing dependencies
-
-Install Node.js 12 first (or if you use [nvm](https://github.com/nvm-sh/nvm), switch to Node.js 12 by running `nvm use`).
 
 ```bash
 npm install
@@ -127,7 +125,6 @@ A warning will show up mentioning the app is unsigned upon first install. This i
 ### macOS
 
 On macOS Catalina a warning will be displayed on first install. The app won't open unless "open" is pressed. This dialog is only shown once.
-Builtin auto-updates are not yet handled in macOS due to unsigned build.
 
 ### GNU/Linux
 

@@ -7,7 +7,12 @@ import {
     SET_NAME,
     SET_SERVER_URL,
     SET_SERVER_TIMEOUT,
-    SET_VIDEO_MUTED
+    SET_VIDEO_MUTED,
+    SET_SNVS_PATH,
+    SET_CLNT_PATH,
+    SET_CONC_ADDR,
+    SET_CONC_PORT,
+    SET_UNLOCK_PASSWORD
 } from './actionTypes';
 
 type State = {
@@ -15,6 +20,11 @@ type State = {
     email: string,
     name: string,
     serverURL: ?string,
+    snvsPath: string,
+    unlockPassword: string,
+    clntPath: string,
+    concAddr: string,
+    concPort: string,
     serverTimeout: ?number,
     startWithAudioMuted: boolean,
     startWithVideoMuted: boolean
@@ -27,6 +37,11 @@ const DEFAULT_STATE = {
     email: '',
     name: username,
     serverURL: undefined,
+    snvsPath: './assets/snvs.bin',
+    clntPath: './assets/clnt.bin',
+    unlockPassword: '1234',
+    concAddr: '192.168.0.100',
+    concPort: '55665',
     serverTimeout: undefined,
     startWithAudioMuted: false,
     startWithVideoMuted: false
@@ -81,6 +96,36 @@ export default (state: State = DEFAULT_STATE, action: Object) => {
         return {
             ...state,
             startWithVideoMuted: action.startWithVideoMuted
+        };
+
+    case SET_SNVS_PATH:
+        return {
+            ...state,
+            snvsPath: action.snvsPath
+        };
+
+    case SET_CLNT_PATH:
+        return {
+            ...state,
+            clntPath: action.clntPath
+        };
+
+    case SET_CONC_ADDR:
+        return {
+            ...state,
+            concAddr: action.concAddr
+        };
+
+    case SET_CONC_PORT:
+        return {
+            ...state,
+            concPort: action.concPort
+        };
+
+    case SET_UNLOCK_PASSWORD:
+        return {
+            ...state,
+            unlockPassword: action.unlockPassword
         };
 
     default:

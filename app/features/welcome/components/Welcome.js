@@ -9,10 +9,8 @@ import { generateRoomWithoutSeparator } from 'js-utils/random';
 import React, { Component } from 'react';
 import { withTranslation } from 'react-i18next';
 import { compose } from 'redux';
-import type { Dispatch } from 'redux';
 import { connect } from 'react-redux';
 import { push } from 'react-router-redux';
-
 import { Navbar, openDrawer } from '../../navbar';
 import { Onboarding, startOnboarding } from '../../onboarding';
 import { RecentList } from '../../recent-list';
@@ -24,6 +22,9 @@ import HomeLgAltSVG from '../../../images/home-lg-alt.svg';
 import CogSVG from '../../../images/cog.svg';
 import Setting from '../styled/Setting';
 import { SettingsDrawer } from '../../settings';
+import { startProxyService, setProxyStart, setProxyTimeout, resetProxyService, setProxyExit, setProxyActive } from '../../proxy';
+import Message from '../../proxy/components/Message';
+import LoadingComponent from './LoadingComponent';
 
 type Props = {
 
@@ -41,6 +42,28 @@ type Props = {
      * I18next translate function.
      */
      t: Function;
+
+    /**
+     * Display unlock form or child components.
+     */
+    _unlock: boolean;
+
+    /**
+     * Unlock button display mode.
+     */
+    _unlockBusy: boolean;
+
+    /**
+     * Unlock error.
+     */
+    _unlockError: string;
+
+    /**
+     * Proxy service settings.
+     */
+    _settings: Object;
+
+    _password: string;
 };
 
 type State = {
@@ -70,6 +93,23 @@ type State = {
      * If this is not a url it will be treated as room name for default domain.
      */
     url: string;
+
+     /**
+     * Display unlock form or child components.
+     */
+    _unlock: boolean;
+
+    /**
+     * Unlock button display mode.
+     */
+    _unlockBusy: boolean;
+
+    /**
+     * Unlock error.
+     */
+    _unlockError: string;
+
+    _connTimeoutID: ?TimeoutID;
 };
 
 /**
@@ -111,8 +151,42 @@ class Welcome extends Component<Props, State> {
         this._onJoin = this._onJoin.bind(this);
         this._updateRoomname = this._updateRoomname.bind(this);
         this._onIconSettingClick = this._onIconSettingClick.bind(this);
+        this._onUnlockFile = this._onUnlockFile.bind(this);
+        this._onProxyActive = this._onProxyActive.bind(this);
+        this._onProxyExit = this._onProxyExit.bind(this);
     }
 
+    _onProxyActive: (*) => void;
+
+    /* eslint-disable no-unused-vars */
+    /**
+     * Method that handles event when proxy becomes active.
+     *
+     * @param {Object} event - Message event.
+     * @returns {void}
+     */
+    _onProxyActive(event) {
+        clearTimeout(this.state._connTimeoutID);
+        this.props.dispatch(setProxyActive());
+        this._onJoin();
+    }
+    /* eslint-enable no-unused-vars */
+
+    _onProxyExit: (*) => void;
+
+    /* eslint-disable no-unused-vars */
+    /**
+     * Handler when proxy service exits.
+     *
+     * @param {Object} event - Message event.
+     * @param {string} result - Proxy exit result.
+     *
+     * @returns {void}
+     */
+    _onProxyExit(event, result) {
+        clearTimeout(this.state._connTimeoutID);
+        this.props.dispatch(setProxyExit(result));
+    }
     /**
      * Start Onboarding once component is mounted.
      * Start generating randdom room names.
@@ -125,6 +199,8 @@ class Welcome extends Component<Props, State> {
         this.props.dispatch(startOnboarding('welcome-page'));
 
         this._updateRoomname();
+        window.jitsiNodeAPI.ipc.on('proxy-exit', this._onProxyExit);
+        window.jitsiNodeAPI.ipc.on('proxy-active', this._onProxyActive);
     }
 
     /**
@@ -134,6 +210,9 @@ class Welcome extends Component<Props, State> {
      */
     componentWillUnmount() {
         this._clearTimeouts();
+        clearTimeout(this.state._connTimeoutID);
+        window.jitsiNodeAPI.ipc.removeListener('proxy-active', this._onProxyActive);
+        window.jitsiNodeAPI.ipc.removeListener('proxy-exit', this._onProxyExit);
     }
 
     /**
@@ -232,6 +311,7 @@ class Welcome extends Component<Props, State> {
      */
     _onJoin() {
         const inputURL = this.state.url || this.state.generatedRoomname;
+
         const conference = createConferenceObjectFromURL(inputURL);
 
         // Don't navigate if conference couldn't be created
@@ -240,6 +320,25 @@ class Welcome extends Component<Props, State> {
         }
 
         this.props.dispatch(push('/conference', conference));
+    }
+    
+    _onUnlockFile: (*) => void;
+
+    _onUnlockFile() {
+        if (!this.props._unlock && !this.props._unlockBusy) {
+            startProxyService(this.props._settings, this.props._password);
+            this.props.dispatch(setProxyStart());
+
+            const timeoutID = setTimeout(() => {
+                clearTimeout(this.state._connTimeoutID);
+                this.props.dispatch(setProxyTimeout());
+                resetProxyService();
+            }, 30000);
+
+            this.setState({
+                _connTimeoutID: timeoutID
+            });
+        }
     }
 
     _onURLChange: (*) => void;
@@ -271,6 +370,28 @@ class Welcome extends Component<Props, State> {
     }
 
     /**
+     * Return error message if there is an error during the unlock process.
+     *
+     * @returns {void}
+     */
+    _renderUnlockErrorMessage() {
+        switch (this.props._unlockError) {
+            case 'fileError':
+                return <Message message = 'Unable to open snvs.bin or clnt.bin' />;
+            case 'unlockError':
+                return <Message message = 'Unable to unlock SNVS' />;
+            case 'connectError':
+                return <Message message = 'Unable to establish secure connection to concentrator' />;
+            case 'disconnected':
+                return <Message message = 'Disconnected from concentrator' />;
+            case 'unknown':
+                return <Message message = 'Proxy service terminated unexpectedly' />;
+            default:
+                return null;
+        }
+    }
+
+    /**
      * Renders the header for the welcome page.
      *
      * @returns {ReactElement}
@@ -297,10 +418,13 @@ class Welcome extends Component<Props, State> {
                                 type = 'text'
                                 value = { this.state.url } />
                         </DivGroup>
+                        { this._renderUnlockErrorMessage() }
                         <DivGroup>
                             <ButtonLogin
-                                onClick = { this._onJoin }
+                                onClick = { this._onUnlockFile }
+                                disabled={this.props._unlockBusy}
                                 type = 'submit'>
+                                { this.props._unlockBusy && <LoadingComponent />} 
                                 { t('go') }
                             </ButtonLogin>
                         </DivGroup>
@@ -373,4 +497,25 @@ class Welcome extends Component<Props, State> {
     }
 }
 
-export default compose(connect(), withTranslation())(Welcome);
+/**
+ * Maps (parts of) the redux state to the React props.
+ *
+ * @param {Object} state - The redux state.
+ * @returns {Props}
+ */
+function _mapStateToProps(state: Object) {
+    return {
+        _unlock: state.proxy.proxyState === 'active',
+        _unlockBusy: state.proxy.proxyState === 'started',
+        _unlockError: state.proxy.lastResult,
+        _settings: {
+            concAddr: state.settings.concAddr,
+            concPort: state.settings.concPort,
+            clntPath: state.settings.clntPath,
+            snvsPath: state.settings.snvsPath
+        },
+        _password: state.settings.unlockPassword
+    };
+}
+
+export default compose(connect(_mapStateToProps), withTranslation())(Welcome);

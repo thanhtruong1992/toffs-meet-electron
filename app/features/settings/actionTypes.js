@@ -68,3 +68,45 @@ export const SET_SERVER_TIMEOUT = Symbol('SET_SERVER_TIMEOUT');
  * }
  */
 export const SET_VIDEO_MUTED = Symbol('SET_VIDEO_MUTED');
+
+/**
+ * The type of (redux) action that sets SNVS path.
+ *
+ * @type {
+ *     type: SET_SNVS_PATH,
+ *     snvsPath: string
+ * }
+ */
+export const SET_SNVS_PATH = Symbol('SET_SNVS_PATH');
+
+/**
+ * The type of (redux) action that sets CLNT path.
+ *
+ * @type {
+ *     type: SET_CLNT_PATH,
+ *     clntPath: string
+ * }
+ */
+export const SET_CLNT_PATH = Symbol('SET_CLNT_PATH');
+
+/**
+ * The type of (redux) action that sets concentrator address.
+ *
+ * @type {
+ *     type: SET_CONC_ADDR,
+ *     concAddr: string
+ * }
+ */
+export const SET_CONC_ADDR = Symbol('SET_CONC_ADDR');
+
+/**
+ * The type of (redux) action that sets concentrator port.
+ *
+ * @type {
+ *     type: SET_CONC_PORT
+ *     concPort: string
+ * }
+ */
+export const SET_CONC_PORT = Symbol('SET_CONC_PORT');
+
+export const SET_UNLOCK_PASSWORD = Symbol('SET_UNLOCK_PASSWORD');

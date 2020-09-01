@@ -7,15 +7,12 @@ import type { Dispatch } from 'redux';
 import { connect } from 'react-redux';
 import { push } from 'react-router-redux';
 
-import i18n from '../../../i18n';
 import config from '../../config';
 import { getSetting, setEmail, setName } from '../../settings';
 
 import { conferenceEnded, conferenceJoined } from '../actions';
 import JitsiMeetExternalAPI from '../external_api';
 import { LoadingIndicator, Wrapper } from '../styled';
-
-const ENABLE_REMOTE_CONTROL = false;
 
 type Props = {
 
@@ -204,11 +201,7 @@ class Conference extends Component<Props, State> {
         const roomName = url.pathname.split('/').pop();
         const host = this._conference.serverURL.replace(/https?:\/\//, '');
         const searchParameters = Object.fromEntries(url.searchParams);
-        const locale = { lng: i18n.language };
-        const urlParameters = {
-            ...searchParameters,
-            ...locale
-        };
+        const urlParameters = Object.keys(searchParameters).length ? searchParameters : {};
 
         const configOverwrite = {
             startWithAudioMuted: this.props._startWithAudioMuted,
@@ -232,11 +225,6 @@ class Conference extends Component<Props, State> {
         this._api.on('readyToClose', this._onVideoConferenceEnded);
         this._api.on('videoConferenceJoined',
             (conferenceInfo: Object) => {
-                const conference = this._api._frame.contentWindow.APP.store.getState()['features/base/settings'];
-
-                conferenceInfo.displayName = conference.displayName;
-                conferenceInfo.formattedDisplayName = `${conference.displayName} (me)`;
-                conferenceInfo.email = conference.email;
                 this.props.dispatch(conferenceJoined(this._conference));
                 this._onVideoConferenceJoined(conferenceInfo);
             }
@@ -255,10 +243,7 @@ class Conference extends Component<Props, State> {
         const iframe = this._api.getIFrame();
 
         setupScreenSharingRender(this._api);
-
-        if (ENABLE_REMOTE_CONTROL) {
-            new RemoteControl(iframe); // eslint-disable-line no-new
-        }
+        new RemoteControl(iframe); // eslint-disable-line no-new
 
         // Allow window to be on top if enabled in settings
         if (this.props._alwaysOnTopWindowEnabled) {
@@ -282,21 +267,6 @@ class Conference extends Component<Props, State> {
                 </LoadingIndicator>
             );
         }
-
-        this._goHome();
-    }
-
-    /**
-     * Go to Home page.
-     *
-     * @returns {void}
-     */
-    _goHome() {
-        const buttonGoHome = this._api._frame.contentWindow.document.getElementById('goHome');
-
-        buttonGoHome && buttonGoHome.addEventListener('click', () => {
-            this.props.history.push('/');
-        });
     }
 
     /**
@@ -387,15 +357,9 @@ class Conference extends Component<Props, State> {
         const { id } = conferenceInfo;
 
         this._api.on('displayNameChange',
-            (params: Object) => {
-                params.displayname = conferenceInfo.displayName;
-                this._onDisplayNameChange(params, id);
-            });
+            (params: Object) => this._onDisplayNameChange(params, id));
         this._api.on('emailChange',
-            (params: Object) => {
-                params.email = conferenceInfo.email;
-                this._onEmailChange(params, id);
-            });
+            (params: Object) => this._onEmailChange(params, id));
     }
 
     /**

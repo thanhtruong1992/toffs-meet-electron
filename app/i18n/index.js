@@ -12,8 +12,8 @@ const languages = {
     ru: { translation: require('./lang/ru.json') }
 };
 
-const detectedLocale = window.jitsiNodeAPI.getLocale();
-
+//const detectedLocale = window.jitsiNodeAPI.getLocale();
+const detectedLocale = 'en-US';
 i18n
     .use(initReactI18next)
     .init({

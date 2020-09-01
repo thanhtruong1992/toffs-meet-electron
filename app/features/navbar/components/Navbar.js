@@ -57,18 +57,21 @@ class Navbar extends Component<Props, *> {
      */
     render() {
         return (
-            <Navigation
-                drawers = { [
-                    <SettingsDrawer
-                        isOpen = { this.props._isSettingsDrawerOpen }
-                        key = { 0 } />
-                ] }
-                globalPrimaryActions = { this._getPrimaryActions() }
-                globalPrimaryIcon = { <Logo /> }
-                globalSecondaryActions = { this._getSecondaryActions() }
-                isElectronMac = { isElectronMac() }
-                isOpen = { false }
-                isResizeable = { false } />
+            <SettingsDrawer
+                isOpen = { this.props._isSettingsDrawerOpen }
+                key = { 0 } />
+            // <Navigation
+            //     drawers = { [
+            //         <SettingsDrawer
+            //             isOpen = { this.props._isSettingsDrawerOpen }
+            //             key = { 0 } />
+            //     ] }
+            //     // globalPrimaryActions = { this._getPrimaryActions() }
+            //     // globalPrimaryIcon = { <Logo /> }
+            //     // globalSecondaryActions = { this._getSecondaryActions() }
+            //     isElectronMac = { isElectronMac() }
+            //     isOpen = { false }
+            //     isResizeable = { false } />
         );
     }
 }

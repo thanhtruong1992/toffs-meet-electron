@@ -4,12 +4,12 @@ const {
     BrowserWindow,
     Menu,
     app,
-    ipcMain
+    ipcMain,
+    shell
 } = require('electron');
 const contextMenu = require('electron-context-menu');
 const debug = require('electron-debug');
 const isDev = require('electron-is-dev');
-const { autoUpdater } = require('electron-updater');
 const windowStateKeeper = require('electron-window-state');
 const {
     initPopupsConfigurationMain,
@@ -21,7 +21,12 @@ const {
 const path = require('path');
 const URL = require('url');
 const config = require('./app/features/config');
-const { openExternalLink } = require('./app/features/utils/openExternalLink');
+const { spawn } = require('child_process');
+const { EOL } = require('os');
+const fs = require('fs');
+const assert = require('assert');
+const StateMachine = require('javascript-state-machine');
+const LineByLineReader = require('line-by-line');
 
 const showDevTools = Boolean(process.env.SHOW_DEV_TOOLS) || (process.argv.indexOf('--show-dev-tools') > -1);
 
@@ -35,9 +40,6 @@ app.commandLine.appendSwitch('disable-webrtc-hw-decoding');
 // Needed until robot.js is fixed: https://github.com/octalmage/robotjs/issues/580
 app.allowRendererProcessReuse = false;
 
-autoUpdater.logger = require('electron-log');
-autoUpdater.logger.transports.file.level = 'info';
-
 // Enable context menu so things like copy and paste work in input fields.
 contextMenu({
     showLookUpSelection: false,
@@ -46,13 +48,14 @@ contextMenu({
     showCopyImageAddress: false,
     showSaveImage: false,
     showSaveImageAs: false,
-    showInspectElement: false,
+    showInspectElement: true,
     showServices: false
 });
 
 // Enable DevTools also on release builds to help troubleshoot issues. Don't
 // show them automatically though.
 debug({
+    isEnabled: true,
     showDevTools
 });
 
@@ -156,9 +159,6 @@ function createJitsiMeetWindow() {
     // Application menu.
     setApplicationMenu();
 
-    // Check for Updates.
-    autoUpdater.checkForUpdatesAndNotify();
-
     // Load the previous window state with fallback to defaults.
     const windowState = windowStateKeeper({
         defaultWidth: 800,
@@ -198,23 +198,20 @@ function createJitsiMeetWindow() {
 
     mainWindow = new BrowserWindow(options);
     windowState.manage(mainWindow);
-
-    // mainWindow.webContents.session.setProxy({ proxyRules: 'socks5://120.24.46.235:42310' });
     mainWindow.loadURL(indexURL);
-
-    // mainWindow.webContents.openDevTools();
 
     initPopupsConfigurationMain(mainWindow);
     setupAlwaysOnTopMain(mainWindow);
     setupPowerMonitorMain(mainWindow);
     setupScreenSharingMain(mainWindow, config.default.appName);
 
+
     mainWindow.webContents.on('new-window', (event, url, frameName) => {
         const target = getPopupTarget(url, frameName);
 
         if (!target || target === 'browser') {
             event.preventDefault();
-            openExternalLink(url);
+            shell.openExternal(url);
         }
     });
     mainWindow.on('closed', () => {
@@ -225,11 +222,14 @@ function createJitsiMeetWindow() {
     });
 
     /**
-     * When someone tries to enter something like jitsi-meet://test
+     * This is for windows [win32]
+     * so when someone tries to enter something like jitsi-meet://test
      *  while app is closed
      * it will trigger this event below
      */
-    handleProtocolCall(process.argv.pop());
+    if (process.platform === 'win32') {
+        handleProtocolCall(process.argv.pop());
+    }
 }
 
 /**
@@ -271,6 +271,218 @@ if (!gotInstanceLock) {
 }
 
 /**
+ * teleport SOCKS5 proxy.
+ */
+const assetPath = isDev ? __dirname : process.resourcesPath;
+
+let proxyExecutable = null;
+
+// Support only windows and linux for now.
+if (process.platform === 'win32') {
+    proxyExecutable = './assets/teleport-proxy.win32.exe';
+} else if (process.platform === 'linux') {
+    proxyExecutable = './assets/teleport-proxy.linux';
+} else {
+    app.quit();
+    process.exit(0);
+}
+
+const proxyPath = path.resolve(assetPath, proxyExecutable);
+let proxyProcess = null;
+
+// halted: reset from renderer or proxy error, waiting for proxy exit.
+// stopped: fatal error, waiting for proxy exit.
+/* eslint-disable object-property-newline */
+const proxyState = new StateMachine({
+    init: 'inactive',
+    transitions: [
+        { name: 'start', from: 'inactive', to: 'started' },
+        { name: 'unlockSuccess', from: 'started', to: 'unlocked' },
+        { name: 'unlockFailure', from: 'started', to: 'halted' },
+        { name: 'bind', from: 'unlocked', to: 'bound' },
+        { name: 'activate', from: 'bound', to: 'active' },
+        { name: 'reset', from: [ 'unlocked', 'bound', 'active' ], to: 'halted' },
+        { name: 'exit', from: [ 'started', 'unlocked', 'bound', 'active', 'halted' ], to: 'inactive' },
+        { name: 'stop', from: '*', to: 'stopped' }
+    ]
+});
+
+const proxyStage = new StateMachine({
+    init: 'inactive',
+    transitions: [
+        { name: 'start', from: 'inactive', to: 'started' },
+        { name: 'unlock', from: 'started', to: 'unlocked' },
+        { name: 'activate', from: 'unlocked', to: 'active' },
+        { name: 'exit', from: '*', to: 'inactive' }
+    ]
+});
+/* eslint-enable object-property-newline */
+
+/**
+ * Register handler for proxy app exit.
+ */
+function registerProxyExitHandler(proxy, event) {
+    proxy.on('exit', () => {
+        if (proxyState.is('stopped')) {
+            app.quit();
+        } else {
+            proxyState.exit();
+            proxyProcess = null;
+
+            let error = null;
+
+            switch (proxyStage.state) {
+            case 'started':
+                error = 'unlockError';
+                break;
+            case 'unlocked':
+                error = 'connectError';
+                break;
+            case 'active':
+                error = 'disconnected';
+                break;
+            default:
+                error = 'unknown';
+                break;
+            }
+
+            proxyStage.exit();
+            event.reply('proxy-exit', error);
+        }
+    });
+}
+
+/**
+ * Register handler for proxy stdout stream.
+ */
+function registerProxyStdoutHandler(proxy, event) {
+    const reader = new LineByLineReader(proxy.stdout);
+
+    reader.on('line', line => {
+        if (!proxyState.is('inactive')) {
+            try {
+                const message = JSON.parse(line);
+
+                switch (message.type) {
+                case 'unlock':
+                    if (message.unlock === true) {
+                        proxyState.unlockSuccess();
+                        proxyStage.unlock();
+                    } else {
+                        proxyState.unlockFailure();
+                    }
+                    break;
+                case 'socks5_bound_addr':
+                    proxyState.bind();
+                    assert.ok(typeof message.port === 'number', 'Invalid bound port');
+                    assert.ok(message.port > 0 && message.port < 65536, 'Invalid bound port');
+                    mainWindow.webContents.session.setProxy({
+                        proxyRules: `socks5://localhost:${message.port}`
+                    });
+                    break;
+                case 'status':
+                    if (message.status === 'active') {
+                        proxyState.activate();
+                        proxyStage.activate();
+                        event.reply('proxy-active');
+                    } else {
+                        throw new TypeError('Invalid status message');
+                    }
+                    break;
+                default:
+                    throw new TypeError('Invalid proxy message');
+                }
+            } catch (err) {
+                console.error(`handleProxyStdout error: ${err.name}: ${err.message}`);
+                if (!proxyState.is('halted') && !proxyState.is('stopped')) {
+                    proxy.stdin.write(EOL);
+                }
+                proxyState.stop();
+            }
+        }
+    });
+}
+
+/**
+ * Spawn proxy application.
+ */
+function spawnProxy(event, data) {
+    const args = [ '-d', '-p', '127.0.0.1', '0', data.snvsPath, data.clntPath, data.concAddr, data.concPort ];
+
+    proxyProcess = spawn(proxyPath, args, { stdio: [ 'pipe', 'pipe', 'ignore' ] });
+    proxyProcess.on('error', error => {
+        console.error(`Failed to start proxy: ${error}`);
+        app.quit();
+        process.exit(1);
+    });
+    registerProxyExitHandler(proxyProcess, event);
+    registerProxyStdoutHandler(proxyProcess, event);
+}
+
+/**
+ * Handler for proxy start request from renderer
+ */
+function handleProxyStart(event, data) {
+    if (proxyState.is('inactive')) {
+        // Check filenames before spawning.
+        let tempData = {...data};
+        tempData.snvsPath = path.resolve(assetPath, tempData.snvsPath);
+        tempData.clntPath = path.resolve(assetPath, tempData.clntPath);
+        try {
+            fs.accessSync(tempData.snvsPath, fs.constants.R_OK);
+            fs.accessSync(tempData.clntPath, fs.constants.R_OK);
+        } catch (err) {
+            event.reply('proxy-exit', 'fileError');
+
+            return;
+        }
+        spawnProxy(event, tempData);
+        proxyProcess.stdin.write(data.snvsPassword + EOL);
+        data.snvsPassword = '';
+        proxyState.start();
+        proxyStage.start();
+    }
+}
+
+/* eslint-disable no-unused-vars */
+/**
+ * Handler for proxy reset request from renderer
+ */
+function handleProxyReset(event, data) {
+    switch (proxyState.state) {
+    case 'unlocked':
+    case 'bound':
+    case 'active':
+        // request halt by writing ''.
+        proxyProcess.stdin.write(EOL);
+        proxyState.reset();
+        break;
+    case 'halted':
+        // already waiting for proxy exit.
+        // ignore reset request.
+        break;
+    case 'stopped':
+        // stopped by fatal error.
+        // already waiting for proxy exit.
+        // ignore reset request.
+        break;
+    case 'inactive':
+        // renderer sends reset request right after proxy exit.
+        // ignore reset request.
+        break;
+    default:
+        // invalid state.
+        console.error(`handleProxyReset error: Invalid state ${proxyState.state}`);
+        proxyState.stop();
+        break;
+    }
+}
+/* eslint-enable no-unused-vars */
+
+ipcMain.on('proxy-start', handleProxyStart);
+ipcMain.on('proxy-reset', handleProxyReset);
+
+/**
  * Run the application.
  */
 
@@ -283,12 +495,17 @@ app.on('activate', () => {
 app.on('certificate-error',
     // eslint-disable-next-line max-params
     (event, webContents, url, error, certificate, callback) => {
+        event.preventDefault();
+        callback(true);
+
+        /*
         if (isDev) {
             event.preventDefault();
             callback(true);
         } else {
             callback(false);
         }
+        */
     }
 );
 
@@ -313,9 +530,25 @@ app.on('second-instance', (event, commandLine) => {
 });
 
 app.on('window-all-closed', () => {
-    // Don't quit the application on macOS.
-    if (process.platform !== 'darwin') {
+    switch (proxyState.state) {
+    case 'inactive':
         app.quit();
+        break;
+    case 'started':
+    case 'unlocked':
+    case 'bound':
+    case 'active':
+        // request halt by writing ''.
+        // move to 'stopped' state so that app will quit
+        // once proxy exits.
+        proxyProcess.stdin.write(EOL);
+        proxyState.stop();
+        break;
+    default:
+        // move to 'stop' state so that app will quit
+        // once proxy exits.
+        proxyState.stop();
+        break;
     }
 });
 

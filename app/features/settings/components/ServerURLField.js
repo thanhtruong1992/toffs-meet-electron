@@ -3,10 +3,8 @@
 import { FieldTextStateless } from '@atlaskit/field-text';
 
 import React, { Component } from 'react';
-import { withTranslation } from 'react-i18next';
 import { connect } from 'react-redux';
 import type { Dispatch } from 'redux';
-import { compose } from 'redux';
 
 import config from '../../config';
 import { getExternalApiURL } from '../../utils';
@@ -25,11 +23,6 @@ type Props = {
      * Default Jitsi Meet Server URL in (redux) store.
      */
     _serverURL: string;
-
-    /**
-     * I18next translation function.
-     */
-    t: Function;
 };
 
 type State = {
@@ -72,15 +65,14 @@ class ServerURLField extends Component<Props, State> {
      * @returns {ReactElement}
      */
     render() {
-        const { t } = this.props;
-
         return (
             <Form onSubmit = { this._onServerURLSubmit }>
                 <FieldTextStateless
-                    invalidMessage = { t('settings.invalidServer') }
+                    invalidMessage
+                        = { 'Invalid Server URL or external API not enabled' }
                     isInvalid = { !this.state.isValid }
                     isValidationHidden = { this.state.isValid }
-                    label = { t('settings.serverUrl') }
+                    label = 'Server URL'
                     onBlur = { this._onServerURLSubmit }
                     onChange = { this._onServerURLChange }
                     placeholder = { config.defaultServerURL }
@@ -158,4 +150,4 @@ function _mapStateToProps(state: Object) {
     };
 }
 
-export default compose(connect(_mapStateToProps), withTranslation())(ServerURLField);
+export default connect(_mapStateToProps)(ServerURLField);
