@@ -143,11 +143,11 @@ class Welcome extends Component<Props, State> {
      */
     render() {
         return (
-            <Page navigation = { <Navbar /> }>
+            <Page>
                 <AtlasKitThemeProvider mode = 'light'>
-                    <Setting onClick = { this._onIconSettingClick }>
+                    {/* <Setting onClick = { this._onIconSettingClick }>
                         <CogSVG />
-                    </Setting>
+                    </Setting> */}
                     <Wrapper>
                         <PremiumMeeting />
                         { this._renderHeader() }
